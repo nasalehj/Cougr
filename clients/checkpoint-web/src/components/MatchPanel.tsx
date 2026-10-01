@@ -1,4 +1,4 @@
-import { hashLabel, statusLabel, type MatchState } from "../game";
+import { parseStateHash, statusLabel, type MatchState } from "../game";
 
 export interface MatchPanelProps { state: MatchState | null; busy: boolean; onRefresh: () => void; }
 
@@ -33,8 +33,8 @@ export function MatchPanel({ state, busy, onRefresh }: MatchPanelProps) {
   );
 }
 
-function hashDisplay(hash: number): string {
-  if (hash === 0) return "none";
-  if (Number.isSafeInteger(hash)) return hashLabel(Math.floor(hash / 0x100000000), hash % 0x100000000);
-  return String(hash);
+function hashDisplay(hash: MatchState["last_hash"]): string {
+  if (hash === 0 || hash === 0n || hash === "0") return "none";
+  const parsed = parseStateHash(hash);
+  return parsed ? parsed.label : String(hash);
 }

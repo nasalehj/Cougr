@@ -20,6 +20,17 @@ describe("MatchPanel", () => {
     expect(html).toContain("7");
   });
 
+  it("renders a bigint u64 hash above MAX_SAFE_INTEGER exactly", () => {
+    const html = renderToStaticMarkup(
+      <MatchPanel
+        state={{ ...COMMITTED_FIXTURE, last_hash: 18446744073709551615n }}
+        busy={false}
+        onRefresh={() => undefined}
+      />
+    );
+    expect(html).toContain("0xffffffffffffffff");
+  });
+
   it("shows the empty state before a match is loaded", () => {
     const html = renderToStaticMarkup(<MatchPanel state={null} busy={false} onRefresh={() => undefined} />);
     expect(html).toContain("No checkpoint match loaded");

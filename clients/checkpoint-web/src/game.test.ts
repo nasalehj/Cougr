@@ -62,6 +62,34 @@ describe("checkpoint client state handling", () => {
     expect(actionRejection(DISPUTE_LATE.message)).toBe("The dispute window has already closed.");
   });
 
+  it("accepts bigint u64 hashes from a real contract payload", () => {
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: 0n })).toBe(true);
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: 48879n })).toBe(true);
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: 18446744073709551615n })).toBe(true);
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: "18446744073709551615" })).toBe(true);
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: -1n })).toBe(false);
+    expect(isMatchState({ ...COMMITTED_FIXTURE, last_hash: 18446744073709551616n })).toBe(false);
+  });
+
+  it("accepts a bigint hash through isActionResult for a commit and a late dispute", () => {
+    const committed: ActionResult = {
+      success: true,
+      match_state: { ...COMMITTED_FIXTURE, last_hash: 18446744073709551615n },
+      message: "ok"
+    };
+    expect(isActionResult(committed)).toBe(true);
+    expect(parseStateHash(committed.match_state.last_hash)?.label).toBe("0xffffffffffffffff");
+
+    const late: ActionResult = {
+      success: false,
+      match_state: { ...COMMITTED_FIXTURE, last_hash: 48879n },
+      message: "toolate"
+    };
+    expect(isActionResult(late)).toBe(true);
+    expect(late.success).toBe(false);
+    expect(actionRejection(late.message)).toBe("The dispute window has already closed.");
+  });
+
   it("maps every contract rejection code to a safe UI message", () => {
     expect(actionRejection("notrun")).toBe("The match is not running.");
     expect(actionRejection("oldtick")).toBe("That tick is not newer than the last committed checkpoint.");
@@ -86,6 +114,11 @@ describe("checkpoint client state handling", () => {
   it("parses u64 hashes exactly, including values above MAX_SAFE_INTEGER", () => {
     expect(parseStateHash(48879)?.label).toBe("0x000000000000beef");
     expect(parseStateHash(0)?.label).toBe("0x0000000000000000");
+    expect(parseStateHash(48879n)?.label).toBe("0x000000000000beef");
+    expect(parseStateHash(0n)?.label).toBe("0x0000000000000000");
+    expect(parseStateHash(18446744073709551615n)?.label).toBe("0xffffffffffffffff");
+    expect(parseStateHash(18446744073709551616n)).toBeNull();
+    expect(parseStateHash(-1n)).toBeNull();
     expect(parseStateHash("18446744073709551615")?.label).toBe("0xffffffffffffffff");
     expect(parseStateHash("18446744073709551616")).toBeNull();
     expect(parseStateHash("-1")).toBeNull();

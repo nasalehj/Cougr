@@ -3,7 +3,12 @@ export type MatchStatus = 0 | 1 | 2;
 export interface MatchState {
   player: string;
   last_tick: number;
-  last_hash: number;
+  /**
+   * Soroban u64. scValToNative decodes it as a bigint, which can exceed
+   * Number.MAX_SAFE_INTEGER, so allow the exact bigint and decimal-string
+   * forms alongside a safe number rather than lossy float arithmetic.
+   */
+  last_hash: number | bigint | string;
   last_score: number;
   status: MatchStatus;
 }
@@ -42,7 +47,7 @@ export function isMatchState(value: unknown): value is MatchState {
   const state = value as Partial<MatchState>;
   return typeof state.player === "string" &&
     typeof state.last_tick === "number" && Number.isSafeInteger(state.last_tick) && state.last_tick >= 0 &&
-    typeof state.last_hash === "number" && Number.isSafeInteger(state.last_hash) && state.last_hash >= 0 &&
+    parseStateHash(state.last_hash) !== null &&
     typeof state.last_score === "number" && Number.isSafeInteger(state.last_score) && state.last_score >= 0 &&
     [0, 1, 2].includes(state.status ?? -1);
 }
@@ -66,6 +71,10 @@ export interface StateHash {
 }
 
 export function parseStateHash(raw: unknown): StateHash | null {
+  if (typeof raw === "bigint") {
+    if (raw < 0n || raw > 0xffffffffffffffffn) return null;
+    return fromParts(Number(raw >> 32n), Number(raw & 0xffffffffn));
+  }
   if (typeof raw === "number") {
     if (!Number.isSafeInteger(raw) || raw < 0) return null;
     return fromParts(Math.floor(raw / 0x100000000), raw % 0x100000000);
